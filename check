@@ -1,0 +1,51 @@
+#!/bin/bash
+
+UPDATE=./update
+
+function print(){
+	now=$(date)
+	echo -e "--------------------------------------------------------------------------------\r-- $now: $1 "
+}
+
+function start(){
+	print "Starting Flinga"
+	sudo -n start flinga
+	if [ $? -eq 0 ]; then
+		print "Started"
+		return 0
+	else
+		return 1
+	fi
+	
+}
+
+function stop(){
+	print "Stopping Flinga"
+	sudo -n stop flinga
+	if [ $? -eq 0 ]; then
+		print "Stopped"
+		return 0
+	else
+		return 1
+	fi
+}
+
+function deploy(){
+	stop
+	$UPDATE deploy
+	if [ $? -ne 2 ]; then
+		start
+	else
+		print 'BIG PROBLEM!'
+	fi
+}
+
+if [ "$1" == "restart" ]; then
+	stop
+	start
+elif [ "$1" == "force" ]; then
+	$UPDATE force
+	deploy
+elif $UPDATE; then
+	deploy
+fi

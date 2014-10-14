@@ -1,0 +1,117 @@
+#!/bin/bash
+REPO="git@bitbucket.org:jonime/flinga-2.0.git"
+REPO_BRANCH="master"
+
+ROOT_DIR=`cd $(dirname $0); pwd`
+FLINGA_DIR=$ROOT_DIR/flinga
+TARGET_DIR=$ROOT_DIR/target
+BUNDLE_DIR=$TARGET_DIR/bundle
+SOURCE_DIR=$ROOT_DIR/source
+METEOR_DIR=$SOURCE_DIR/meteor
+
+function print(){
+	now=$(date)
+	echo -e "--------------------------------------------------------------------------------\r-- $now: $1 "
+}
+
+function deploy(){
+	print "Deploying"
+
+	if [ ! -d "$TARGET_DIR" ]; then
+		print 'Build first!'
+		return 1
+	fi
+	if [ ! -d "$BUNDLE_DIR" ]; then
+		print 'Bundle missing from target!'
+		return 1
+	fi
+
+	rm -rf $FLINGA_DIR.bak
+	if [ -d "$FLINGA_DIR" ]; then
+		mv $FLINGA_DIR $FLINGA_DIR.bak
+	fi
+	mv $BUNDLE_DIR $FLINGA_DIR
+	if [ $? -eq 0 ]; then
+		print 'Deployed'
+		rm -rf $FLINGA_DIR.bak
+		rm -rf $TARGET_DIR
+		return 0
+	else
+		print 'Deploying failed!'
+		if [ -d "$FLINGA_DIR.bak" ]; then
+			mv $FLINGA_DIR.bak $FLINGA_DIR
+			print 'Reverted old version'
+			return 1
+		else
+			return 2
+		fi
+	fi
+}
+
+function update(){
+	print "Updating..."
+	
+	if [ ! -d "$SOURCE_DIR" ]; then
+		print "Repository missing, cloning it"
+		git clone -b $REPO_BRANCH $REPO $SOURCE_DIR
+		if [ $? != 0 ]; then return 1; fi
+	else
+		print "Checking revision difference"
+		cd $SOURCE_DIR
+		if [ $? != 0 ]; then return 1; fi
+		git clean -df
+		if [ $? != 0 ]; then return 1; fi
+		git checkout $REPO_BRANCH
+		if [ $? != 0 ]; then return 1; fi
+		git fetch
+		if [ $? != 0 ]; then return 1; fi
+		local local_rev=$(git rev-parse HEAD)
+		local remote_rev=$(git rev-parse origin/$REPO_BRANCH)
+
+		if [ $local_rev = $remote_rev ]; then
+			print "No updates found"
+			return 1
+		fi
+
+		git merge origin/$REPO_BRANCH
+		if [ $? != 0 ]; then return 1; fi
+	fi
+	
+	return 0
+}
+
+function build(){
+	print "Building new version..."
+	rm -rf $TARGET_DIR
+
+	cd $METEOR_DIR
+	if [ $? != 0 ]; then return 1; fi
+	meteor update
+	if [ $? != 0 ]; then return 1; fi
+	meteor build --directory $TARGET_DIR
+	if [ $? != 0 ]; then return 1; fi
+
+	print "Installing NPM packages..."
+	cd $BUNDLE_DIR/programs/server
+	if [ $? != 0 ]; then return 1; fi
+	rm -rf node_modules
+	if [ $? != 0 ]; then return 1; fi
+	npm install
+	if [ $? != 0 ]; then return 1; fi
+
+	return 0
+}
+
+if [ "$1" == "deploy" ]; then
+	deploy
+	exit $?
+elif [ "$1" == "force" ]; then
+	update
+	build
+	exit $?
+elif update; then
+	build
+	exit $?
+fi
+
+exit 1
