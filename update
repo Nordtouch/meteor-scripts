@@ -1,6 +1,6 @@
 #!/bin/bash
 REPO="git@bitbucket.org:jonime/flinga-2.0.git"
-REPO_BRANCH="master"
+REPO_BRANCH="develop"
 
 ROOT_DIR=`cd $(dirname $0); pwd`
 FLINGA_DIR=$ROOT_DIR/flinga
@@ -86,8 +86,8 @@ function build(){
 
 	cd $METEOR_DIR
 	if [ $? != 0 ]; then return 1; fi
-	meteor update
-	if [ $? != 0 ]; then return 1; fi
+	# meteor update
+	# if [ $? != 0 ]; then return 1; fi
 	meteor build --directory $TARGET_DIR
 	if [ $? != 0 ]; then return 1; fi
 
