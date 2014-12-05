@@ -3,6 +3,6 @@
 export PORT=3000
 export MONGO_URL='mongodb://localhost:27017/flinga'
 export ROOT_URL='https://edu.flinga.fi'
-export METEOR_SETTINGS=`cat source/meteor/settings.json`
+export METEOR_SETTINGS=`cat source/settings/prod.json`
 
 node flinga/main.js
